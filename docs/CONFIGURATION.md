@@ -144,7 +144,10 @@ version is never overwritten.
 #### `backend`
 
 Use `"injector"`. It is the only supported user choice and there is no
-alternative runtime backend to select, so this field should be left unchanged.
+alternative runtime backend to select, so this field should normally be left unchanged.
+
+Input is parsed case-insensitively for compatibility with older helpers that wrote values such as
+`"Injector"`; the next normalized write serializes it back as lowercase `"injector"`.
 
 #### `log_level`
 
