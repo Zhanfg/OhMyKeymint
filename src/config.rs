@@ -629,7 +629,11 @@ impl std::str::FromStr for Backend {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        // Configuration files are user-edited and older tooling has emitted title-cased values
+        // such as "Injector".  Treat backend names as ASCII case-insensitive on input, while
+        // Display/Serialize always writes the single canonical spelling "injector".  This keeps a
+        // harmless capitalization difference from crash-looping keymint during startup.
+        match s.trim().to_ascii_lowercase().as_str() {
             // ponytail: keep old configs booting while the OMK system-service backend is disabled.
             "injector" => Ok(Backend::Injector),
             "omk" => Ok(Backend::Injector),
@@ -1072,16 +1076,14 @@ mod tests {
     }
 
     #[test]
-    fn backend_config_accepts_injector_and_legacy_omk_alias() {
-        let injector: MainConfig = toml::from_str(r#"backend = "injector""#).unwrap();
-        assert_eq!(injector.backend, Backend::Injector);
-
-        let omk: MainConfig = toml::from_str(r#"backend = "omk""#).unwrap();
-        assert_eq!(omk.backend, Backend::Injector);
+    fn backend_config_accepts_injector_and_legacy_omk_alias_case_insensitively() {
+        for value in ["injector", "Injector", "INJECTOR", "omk", "OMK"] {
+            let input = format!("backend = \"{value}\"");
+            let parsed: MainConfig = toml::from_str(&input).unwrap();
+            assert_eq!(parsed.backend, Backend::Injector);
+        }
 
         assert!(toml::from_str::<MainConfig>(r#"backend = "ts""#).is_err());
-        assert!(toml::from_str::<MainConfig>(r#"backend = "Injector""#).is_err());
-        assert!(toml::from_str::<MainConfig>(r#"backend = "OMK""#).is_err());
 
         let serialized = toml::to_string(&MainConfig::default()).unwrap();
         assert!(serialized.contains(r#"backend = "injector""#));
